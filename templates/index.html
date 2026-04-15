@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>TI Inventory | Cloud Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-white p-10">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex justify-between items-center mb-10">
+            <h1 class="text-4xl font-extrabold text-blue-500">Inventory System</h1>
+            <button onclick="addRandom()" class="bg-blue-600 px-6 py-2 rounded-full font-bold hover:bg-blue-400 transition">Simular Registro</button>
+        </div>
+        
+        <div class="bg-slate-800 rounded-2xl shadow-xl overflow-hidden border border-slate-700">
+            <table class="w-full text-left">
+                <thead class="bg-slate-700 text-blue-300">
+                    <tr>
+                        <th class="p-4">ID</th><th class="p-4">Dispositivo</th><th class="p-4">Área</th><th class="p-4">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody" class="divide-y divide-slate-700"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function load() {
+            const res = await fetch('/devices');
+            const data = await res.json();
+            document.getElementById('tableBody').innerHTML = data.map(d => `
+                <tr class="hover:bg-slate-750">
+                    <td class="p-4 font-mono text-sm">${d.id}</td>
+                    <td class="p-4">${d.nombre} <br><span class="text-xs text-gray-400">${d.tipo}</span></td>
+                    <td class="p-4">${d.area}</td>
+                    <td class="p-4"><button onclick="remove('${d.id}')" class="text-red-400">Eliminar</button></td>
+                </tr>`).join('');
+        }
+        async function addRandom() {
+            await fetch('/devices', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({nombre: "Laptop Pro", tipo: "Laptop", estado: "Disponible", area: "Soporte"})
+            });
+            load();
+        }
+        async function remove(id) {
+            await fetch('/devices/' + id, {method: 'DELETE'});
+            load();
+        }
+        load();
+    </script>
+</body>
+</html>
