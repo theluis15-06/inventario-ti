@@ -2,52 +2,256 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>TI Inventory | Cloud Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Manager | Pastel Cloud</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Quicksand', sans-serif; background-color: #1a1c2c; }
+        .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .pastel-blue { color: #a2d2ff; }
+        .pastel-pink { color: #ffafcc; }
+        .pastel-green { color: #b9fbc0; }
+        .btn-pastel { background: linear-gradient(135deg, #a2d2ff, #ffafcc); color: #1a1c2c; }
+        .btn-pastel:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        input, select { background: rgba(255,255,255,0.05) !important; border-color: rgba(255,255,255,0.1) !important; color: white !important; }
+    </style>
 </head>
-<body class="bg-slate-900 text-white p-10">
-    <div class="max-w-4xl mx-auto">
-        <div class="flex justify-between items-center mb-10">
-            <h1 class="text-4xl font-extrabold text-blue-500">Inventory System</h1>
-            <button onclick="addRandom()" class="bg-blue-600 px-6 py-2 rounded-full font-bold hover:bg-blue-400 transition">Simular Registro</button>
-        </div>
-        
-        <div class="bg-slate-800 rounded-2xl shadow-xl overflow-hidden border border-slate-700">
-            <table class="w-full text-left">
-                <thead class="bg-slate-700 text-blue-300">
-                    <tr>
-                        <th class="p-4">ID</th><th class="p-4">Dispositivo</th><th class="p-4">Área</th><th class="p-4">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody" class="divide-y divide-slate-700"></tbody>
-            </table>
+<body class="text-slate-300 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="flex flex-col lg:flex-row justify-between items-center mb-8 gap-4">
+            <div>
+                <h1 class="text-4xl font-bold bg-gradient-to-r from-[#a2d2ff] to-[#ffafcc] bg-clip-text text-transparent">IT Inventory</h1>
+                <p class="text-sm text-slate-500">Gestión profesional de activos digitales</p>
+            </div>
+            
+            <div class="flex flex-wrap gap-3 justify-center">
+                <input type="text" id="searchInput" onkeyup="searchTable()" placeholder="🔍 Buscar dispositivo..." class="rounded-full px-5 py-2 text-sm outline-none focus:ring-2 focus:ring-[#ffafcc]">
+                <button onclick="exportCSV()" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-full text-xs font-bold transition">📥 Exportar CSV</button>
+                <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-full text-xs font-bold transition">🖨️ Imprimir Reporte</button>
+                <button onclick="toggleTheme()" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-full text-xs font-bold transition">🌓 Tema</button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <aside class="lg:col-span-1 space-y-6">
+                <div class="glass-card p-6 rounded-3xl shadow-xl">
+                    <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                        <span class="text-[#ffafcc]">✨</span> <span id="formTitle">Nuevo Registro</span>
+                    </h2>
+                    <form id="deviceForm" class="space-y-4">
+                        <input type="hidden" id="editId">
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 tracking-widest">Nombre</label>
+                            <input type="text" id="devName" placeholder="Nombre del hardware" class="w-full rounded-2xl px-4 py-3 text-sm">
+                        </div>
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 tracking-widest">Categoría</label>
+                            <select id="devType" class="w-full rounded-2xl px-4 py-3 text-sm appearance-none">
+                                <option value="Laptop">💻 Laptop</option>
+                                <option value="Servidor">🖥️ Servidor</option>
+                                <option value="Periférico">⌨️ Periférico</option>
+                                <option value="Redes">🌐 Redes</option>
+                                <option value="Otro">📦 Otro</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 tracking-widest">Área Asignada</label>
+                            <input type="text" id="devArea" placeholder="Ej. Sistemas" class="w-full rounded-2xl px-4 py-3 text-sm">
+                        </div>
+                        <div class="pt-2">
+                            <button type="button" id="mainBtn" onclick="saveData()" class="btn-pastel w-full py-3 rounded-2xl font-bold shadow-lg transition-all">Guardar Activo</button>
+                            <button type="button" onclick="cancelEdit()" id="cancelBtn" class="hidden w-full mt-2 text-xs text-slate-400 hover:text-white">Cancelar Edición</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="glass-card p-6 rounded-3xl">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase mb-4 tracking-widest">Resumen de Estado</h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between text-sm">
+                            <span>Total Activos</span>
+                            <span id="statTotal" class="text-[#a2d2ff] font-bold">0</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                            <div id="progressBar" class="bg-gradient-to-r from-[#a2d2ff] to-[#ffafcc] h-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="lg:col-span-3">
+                <div class="glass-card rounded-3xl overflow-hidden shadow-2xl">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left" id="inventoryTable">
+                            <thead class="bg-white/5 border-b border-white/10 text-[11px] uppercase tracking-widest text-slate-400">
+                                <tr>
+                                    <th class="p-5">Dispositivo</th>
+                                    <th class="p-5">Área</th>
+                                    <th class="p-5">Categoría</th>
+                                    <th class="p-5 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody" class="divide-y divide-white/5">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
 
     <script>
+        let allData = [];
+
         async function load() {
-            const res = await fetch('/devices');
-            const data = await res.json();
-            document.getElementById('tableBody').innerHTML = data.map(d => `
-                <tr class="hover:bg-slate-750">
-                    <td class="p-4 font-mono text-sm">${d.id}</td>
-                    <td class="p-4">${d.nombre} <br><span class="text-xs text-gray-400">${d.tipo}</span></td>
-                    <td class="p-4">${d.area}</td>
-                    <td class="p-4"><button onclick="remove('${d.id}')" class="text-red-400">Eliminar</button></td>
+            try {
+                const res = await fetch('/devices');
+                allData = await res.json();
+                renderTable(allData);
+                updateStats();
+            } catch (e) { console.error("Error cargando datos:", e); }
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = data.map(d => `
+                <tr class="hover:bg-white/[0.02] transition-all group">
+                    <td class="p-5">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 rounded-xl bg-white/5 text-lg group-hover:scale-110 transition-transform">
+                                ${getIcon(d.tipo)}
+                            </div>
+                            <div>
+                                <p class="font-bold text-slate-200">${d.nombre}</p>
+                                <p class="text-[10px] text-slate-500 font-mono">ID: ${d.id}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-5">
+                        <span class="text-xs font-semibold px-3 py-1 rounded-full bg-[#a2d2ff]/10 text-[#a2d2ff] border border-[#a2d2ff]/20">
+                            ${d.area}
+                        </span>
+                    </td>
+                    <td class="p-5">
+                        <span class="text-xs text-slate-400">${d.tipo}</span>
+                    </td>
+                    <td class="p-5 text-right">
+                        <div class="flex justify-end gap-2">
+                            <button onclick="startEdit('${d.id}', '${d.nombre}', '${d.tipo}', '${d.area}')" class="p-2 hover:bg-[#a2d2ff]/20 rounded-lg text-[#a2d2ff] transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            </button>
+                            <button onclick="remove('${d.id}')" class="p-2 hover:bg-[#ffafcc]/20 rounded-lg text-[#ffafcc] transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                        </div>
+                    </td>
                 </tr>`).join('');
         }
+
+        // Función 1: Guardar (Nuevo o Editar)
+        async function saveData() {
+            const id = document.getElementById('editId').value;
+            const payload = {
+                nombre: document.getElementById('devName').value,
+                tipo: document.getElementById('devType').value,
+                area: document.getElementById('devArea').value || "General"
+            };
+
+            if(!payload.nombre) return alert("Ingresa un nombre");
+
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/devices/${id}` : '/devices';
+
+            await fetch(url, {
+                method: method,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            cancelEdit();
+            load();
+        }
+
+        // Función 2: Iniciar Edición
+        function startEdit(id, nom, tipo, area) {
+            document.getElementById('editId').value = id;
+            document.getElementById('devName').value = nom;
+            document.getElementById('devType').value = tipo;
+            document.getElementById('devArea').value = area;
+            document.getElementById('formTitle').innerText = "Editar Activo";
+            document.getElementById('mainBtn').innerText = "Actualizar Cambios";
+            document.getElementById('cancelBtn').classList.remove('hidden');
+        }
+
+        // Función 3: Cancelar Edición
+        function cancelEdit() {
+            document.getElementById('deviceForm').reset();
+            document.getElementById('editId').value = "";
+            document.getElementById('formTitle').innerText = "Nuevo Registro";
+            document.getElementById('mainBtn').innerText = "Guardar Activo";
+            document.getElementById('cancelBtn').classList.add('hidden');
+        }
+
+        // Función 4: Eliminar
+        async function remove(id) {
+            if(confirm("¿Eliminar este dispositivo?")) {
+                await fetch('/devices/' + id, {method: 'DELETE'});
+                load();
+            }
+        }
+
+        // Función 5: Búsqueda en tiempo real
+        function searchTable() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = allData.filter(d => 
+                d.nombre.toLowerCase().includes(term) || d.area.toLowerCase().includes(term)
+            );
+            renderTable(filtered);
+        }
+
+        // Función 6: Exportar a CSV
+        function exportCSV() {
+            let csv = "ID,Nombre,Tipo,Area\n";
+            allData.forEach(d => csv += `${d.id},${d.nombre},${d.tipo},${d.area}\n`);
+            const blob = new Blob([csv], {type: 'text/csv'});
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'inventario.csv');
+            a.click();
+        }
+
+        // Función 7: Iconos dinámicos mejorados
+        function getIcon(tipo) {
+            const icons = { 'Laptop': '💻', 'Servidor': '🛡️', 'Redes': '🌐', 'Periférico': '⌨️' };
+            return icons[tipo] || '📦';
+        }
+
+        // Función 8: Actualizar estadísticas visuales
+        function updateStats() {
+            const total = allData.length;
+            document.getElementById('statTotal').innerText = total;
+            document.getElementById('progressBar').style.width = Math.min(total * 5, 100) + '%';
+        }
+
+        // Función 9: Tema (Alternar transparencia)
+        function toggleTheme() {
+            document.body.classList.toggle('bg-slate-900');
+            document.body.classList.toggle('bg-[#1a1c2c]');
+        }
+
+        // Función 10: Datos Aleatorios (Original mantenida)
         async function addRandom() {
             await fetch('/devices', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({nombre: "Laptop Pro", tipo: "Laptop", estado: "Disponible", area: "Soporte"})
+                body: JSON.stringify({nombre: "Random Tech", tipo: "Otro", area: "Almacén"})
             });
             load();
         }
-        async function remove(id) {
-            await fetch('/devices/' + id, {method: 'DELETE'});
-            load();
-        }
+
         load();
     </script>
 </body>
