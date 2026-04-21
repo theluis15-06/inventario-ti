@@ -15,6 +15,7 @@
         .btn-pastel { background: linear-gradient(135deg, #a2d2ff, #ffafcc); color: #1a1c2c; }
         .btn-pastel:hover { filter: brightness(1.1); transform: translateY(-1px); }
         input, select { background: rgba(255,255,255,0.05) !important; border-color: rgba(255,255,255,0.1) !important; color: white !important; }
+        option { background-color: #1a1c2c; color: white; }
     </style>
 </head>
 <body class="text-slate-300 min-h-screen p-4 md:p-8">
@@ -44,7 +45,7 @@
                         <input type="hidden" id="editId">
                         <div>
                             <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 tracking-widest">Nombre</label>
-                            <input type="text" id="devName" placeholder="Nombre del hardware" class="w-full rounded-2xl px-4 py-3 text-sm">
+                            <input type="text" id="devName" placeholder="Nombre del hardware" class="w-full rounded-2xl px-4 py-3 text-sm" required>
                         </div>
                         <div>
                             <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 tracking-widest">Categoría</label>
@@ -58,7 +59,16 @@
                         </div>
                         <div>
                             <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 tracking-widest">Área Asignada</label>
-                            <input type="text" id="devArea" placeholder="Ej. Sistemas" class="w-full rounded-2xl px-4 py-3 text-sm">
+                            <input type="text" id="devArea" placeholder="Ej. Sistemas" class="w-full rounded-2xl px-4 py-3 text-sm" required>
+                        </div>
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 tracking-widest">Estado</label>
+                            <select id="devStatus" class="w-full rounded-2xl px-4 py-3 text-sm appearance-none">
+                                <option value="Disponible">🟢 Disponible</option>
+                                <option value="En uso">🔵 En uso</option>
+                                <option value="Mantenimiento">🟡 Mantenimiento</option>
+                                <option value="Dañado">🔴 Dañado</option>
+                            </select>
                         </div>
                         <div class="pt-2">
                             <button type="button" id="mainBtn" onclick="saveData()" class="btn-pastel w-full py-3 rounded-2xl font-bold shadow-lg transition-all">Guardar Activo</button>
@@ -104,10 +114,11 @@
 
     <script>
         let allData = [];
+        const API_URL = window.location.origin + '/devices';
 
         async function load() {
             try {
-                const res = await fetch('/devices');
+                const res = await fetch(API_URL);
                 allData = await res.json();
                 renderTable(allData);
                 updateStats();
@@ -125,7 +136,7 @@
                             </div>
                             <div>
                                 <p class="font-bold text-slate-200">${d.nombre}</p>
-                                <p class="text-[10px] text-slate-500 font-mono">ID: ${d.id}</p>
+                                <p class="text-[10px] text-slate-500 font-mono">ID: ${d.id} | ${d.estado}</p>
                             </div>
                         </div>
                     </td>
@@ -139,7 +150,7 @@
                     </td>
                     <td class="p-5 text-right">
                         <div class="flex justify-end gap-2">
-                            <button onclick="startEdit('${d.id}', '${d.nombre}', '${d.tipo}', '${d.area}')" class="p-2 hover:bg-[#a2d2ff]/20 rounded-lg text-[#a2d2ff] transition-colors">
+                            <button onclick="startEdit('${d.id}', '${d.nombre}', '${d.tipo}', '${d.area}', '${d.estado}')" class="p-2 hover:bg-[#a2d2ff]/20 rounded-lg text-[#a2d2ff] transition-colors">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                             </button>
                             <button onclick="remove('${d.id}')" class="p-2 hover:bg-[#ffafcc]/20 rounded-lg text-[#ffafcc] transition-colors">
@@ -150,42 +161,45 @@
                 </tr>`).join('');
         }
 
-        // Función 1: Guardar (Nuevo o Editar)
         async function saveData() {
             const id = document.getElementById('editId').value;
             const payload = {
                 nombre: document.getElementById('devName').value,
                 tipo: document.getElementById('devType').value,
-                area: document.getElementById('devArea').value || "General"
+                area: document.getElementById('devArea').value,
+                estado: document.getElementById('devStatus').value
             };
 
-            if(!payload.nombre) return alert("Ingresa un nombre");
+            if(!payload.nombre || !payload.area) return alert("Completa los campos obligatorios");
 
             const method = id ? 'PUT' : 'POST';
-            const url = id ? `/devices/${id}` : '/devices';
+            const url = id ? `${API_URL}/${id}` : API_URL;
 
-            await fetch(url, {
+            const res = await fetch(url, {
                 method: method,
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(payload)
             });
 
-            cancelEdit();
-            load();
+            if(res.ok) {
+                cancelEdit();
+                load();
+            } else {
+                alert("Error al procesar la solicitud");
+            }
         }
 
-        // Función 2: Iniciar Edición
-        function startEdit(id, nom, tipo, area) {
+        function startEdit(id, nom, tipo, area, estado) {
             document.getElementById('editId').value = id;
             document.getElementById('devName').value = nom;
             document.getElementById('devType').value = tipo;
             document.getElementById('devArea').value = area;
+            document.getElementById('devStatus').value = estado;
             document.getElementById('formTitle').innerText = "Editar Activo";
             document.getElementById('mainBtn').innerText = "Actualizar Cambios";
             document.getElementById('cancelBtn').classList.remove('hidden');
         }
 
-        // Función 3: Cancelar Edición
         function cancelEdit() {
             document.getElementById('deviceForm').reset();
             document.getElementById('editId').value = "";
@@ -194,15 +208,13 @@
             document.getElementById('cancelBtn').classList.add('hidden');
         }
 
-        // Función 4: Eliminar
         async function remove(id) {
-            if(confirm("¿Eliminar este dispositivo?")) {
-                await fetch('/devices/' + id, {method: 'DELETE'});
+            if(confirm("¿Eliminar este dispositivo de la Base de Datos?")) {
+                await fetch(`${API_URL}/${id}`, {method: 'DELETE'});
                 load();
             }
         }
 
-        // Función 5: Búsqueda en tiempo real
         function searchTable() {
             const term = document.getElementById('searchInput').value.toLowerCase();
             const filtered = allData.filter(d => 
@@ -211,45 +223,30 @@
             renderTable(filtered);
         }
 
-        // Función 6: Exportar a CSV
         function exportCSV() {
-            let csv = "ID,Nombre,Tipo,Area\n";
-            allData.forEach(d => csv += `${d.id},${d.nombre},${d.tipo},${d.area}\n`);
+            let csv = "ID,Nombre,Tipo,Area,Estado\n";
+            allData.forEach(d => csv += `${d.id},${d.nombre},${d.tipo},${d.area},${d.estado}\n`);
             const blob = new Blob([csv], {type: 'text/csv'});
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.setAttribute('href', url);
-            a.setAttribute('download', 'inventario.csv');
+            a.href = url;
+            a.download = 'inventario_ti.csv';
             a.click();
         }
 
-        // Función 7: Iconos dinámicos mejorados
         function getIcon(tipo) {
             const icons = { 'Laptop': '💻', 'Servidor': '🛡️', 'Redes': '🌐', 'Periférico': '⌨️' };
             return icons[tipo] || '📦';
         }
 
-        // Función 8: Actualizar estadísticas visuales
         function updateStats() {
             const total = allData.length;
             document.getElementById('statTotal').innerText = total;
-            document.getElementById('progressBar').style.width = Math.min(total * 5, 100) + '%';
+            document.getElementById('progressBar').style.width = Math.min(total * 10, 100) + '%';
         }
 
-        // Función 9: Tema (Alternar transparencia)
         function toggleTheme() {
             document.body.classList.toggle('bg-slate-900');
-            document.body.classList.toggle('bg-[#1a1c2c]');
-        }
-
-        // Función 10: Datos Aleatorios (Original mantenida)
-        async function addRandom() {
-            await fetch('/devices', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({nombre: "Random Tech", tipo: "Otro", area: "Almacén"})
-            });
-            load();
         }
 
         load();
